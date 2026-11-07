@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10251c">
+<title>Baseball Hit Tracker</title>
+<style>
+:root{--bg:#0c1713;--panel:#14251e;--panel2:#0f1d18;--line:#2d493b;--text:#f1f7f2;--muted:#a9beb0;--green:#83d6a2;--gold:#ffd166;--red:#ff9e8c}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#183526 0,#0c1713 58%);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1200px;margin:auto;padding:24px 16px 48px}header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+h1{font-size:clamp(27px,4vw,40px);margin:0;letter-spacing:-.7px}.subtitle{color:var(--muted);margin:5px 0 0}.tag{border:1px solid #49765c;color:#b8edc9;padding:6px 10px;border-radius:999px;font-size:12px}
+.layout{display:grid;grid-template-columns:350px minmax(0,1fr);gap:18px;align-items:start}.panel{background:linear-gradient(145deg,#172c22,#122119);border:1px solid var(--line);border-radius:17px;padding:18px;box-shadow:0 12px 32px #0002}
+h2{font-size:18px;margin:0 0 14px}.field{display:grid;grid-template-columns:1fr 125px;gap:10px;align-items:center;margin:12px 0}.field label{font-size:13px;color:#dce9df}.field input,.field select{width:100%;min-width:0;background:#0b1712;color:var(--text);border:1px solid #3d5d4b;border-radius:9px;padding:9px;font:inherit}
+.small{font-size:11px;color:var(--muted)}.zone-title{display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px}.zone-title strong{font-size:14px}
+.zones{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.zone{margin:0;min-height:65px;background:#0b1712;color:var(--text);border:1px solid #3d5d4b;border-radius:10px;padding:6px 3px;font-size:18px;cursor:pointer}.zone small{display:block;color:var(--muted);font-size:10px}.zone.active{background:#245b3c;border:2px solid var(--green);box-shadow:0 0 0 2px #83d6a222}.zone:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.actions{display:flex;gap:8px;margin-top:14px}.primary,.secondary{border:0;border-radius:10px;padding:11px 14px;font-weight:750;cursor:pointer}.primary{background:var(--green);color:#102017;flex:1}.secondary{background:#263d31;color:#e9f5ec;border:1px solid #496653}.primary:hover,.secondary:hover{filter:brightness(1.08)}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:12px}.metric{background:#0c1913;border:1px solid var(--line);border-radius:12px;padding:11px}.metric span{display:block;color:var(--muted);font-size:11px}.metric strong{display:block;font-size:clamp(18px,2.5vw,25px);margin-top:4px}
+svg{width:100%;height:auto;display:block;border-radius:13px;background:#0b1712}.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin:10px 2px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.notice{font-size:12px;color:var(--muted);margin:12px 2px 0}.status{min-height:18px;color:var(--gold);font-size:12px;margin-top:8px}
+.history{margin-top:18px}.history-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.history-list{display:grid;gap:8px;margin-top:10px}.hit{display:flex;justify-content:space-between;gap:10px;align-items:center;background:#0d1a14;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px}.hit span{color:var(--muted)}.empty{color:var(--muted);font-size:13px;padding:12px 0}
+@media(max-width:850px){.layout{grid-template-columns:1fr}}@media(max-width:430px){.field{grid-template-columns:1fr 115px}.metrics{gap:6px}.metric{padding:9px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div><h1>⚾ Baseball Hit Tracker</h1><p class="subtitle">Log a hit, choose the pitch location, and watch its estimated flight.</p></div>
+  <span class="tag">PERSONAL HIT LAB</span>
+</header>
+<div class="layout">
+<section class="panel">
+<h2>Hit details</h2>
+<div class="field"><label for="velo">Exit velocity <span class="small">mph</span></label><input id="velo" type="number" min="20" max="130" step=".1" value="70"></div>
+<div class="field"><label for="angle">Launch angle <span class="small">degrees</span></label><input id="angle" type="number" min="-10" max="80" step=".1" value="25"></div>
+<div class="field"><label for="spray">Spray direction <span class="small">degrees</span></label><input id="spray" type="number" min="-45" max="45" step="1" value="-20"></div>
+<div class="small">0° = center field · negative = left field · positive = right field</div>
+
+<div class="zone-title"><strong>Pitch location — choose 1–9</strong><span class="small" id="zoneName">5 · Middle</span></div>
+<div class="zones" role="group" aria-label="Pitch location in the strike zone">
+<button type="button" class="zone" data-zone="1" aria-pressed="false">1<small>Upper left</small></button>
+<button type="button" class="zone" data-zone="2" aria-pressed="false">2<small>Upper middle</small></button>
+<button type="button" class="zone" data-zone="3" aria-pressed="false">3<small>Upper right</small></button>
+<button type="button" class="zone" data-zone="4" aria-pressed="false">4<small>Middle left</small></button>
+<button type="button" class="zone active" data-zone="5" aria-pressed="true">5<small>Middle</small></button>
+<button type="button" class="zone" data-zone="6" aria-pressed="false">6<small>Middle right</small></button>
+<button type="button" class="zone" data-zone="7" aria-pressed="false">7<small>Lower left</small></button>
+<button type="button" class="zone" data-zone="8" aria-pressed="false">8<small>Lower middle</small></button>
+<button type="button" class="zone" data-zone="9" aria-pressed="false">9<small>Lower right</small></button>
+</div>
+<p class="small">This records where the pitch crossed the plate. It does not by itself determine the exact contact height.</p>
+
+<div class="field"><label for="contact">Contact height <span class="small">feet above ground</span></label><input id="contact" type="number" min="0" max="8" step=".1" value="3"></div>
+<div class="field"><label for="ball">Ball type</label><select id="ball"><option>Regulation baseball</option><option>Practice baseball</option><option>Softball</option></select></div>
+<div class="field"><label for="wind">Wind speed <span class="small">mph</span></label><input id="wind" type="number" min="0" max="40" value="0"></div>
+<div class="field"><label for="winddir">Wind direction</label><select id="winddir"><option value="0">Calm</option><option value="1">Blowing out</option><option value="-1">Blowing in</option></select></div>
+<div class="field"><label for="spin">Spin</label><select id="spin"><option value="unknown">Unknown</option><option value="back">Backspin</option><option value="top">Topspin</option></select></div>
+<div class="field"><label for="temp">Temperature <span class="small">°F</span></label><input id="temp" type="number" value="70"></div>
+<div class="field"><label for="humidity">Humidity <span class="small">%</span></label><input id="humidity" type="number" min="0" max="100" value="50"></div>
+<div class="field"><label for="elevation">Elevation <span class="small">feet</span></label><input id="elevation" type="number" min="-500" max="12000" value="800"></div>
+<div class="field"><label for="bat">Bat type</label><select id="bat"><option>Aluminum</option><option>Wood</option><option>Composite</option><option>Hybrid</option></select></div>
+<div class="field"><label for="batmodel">Bat model</label><input id="batmodel" type="text" placeholder="e.g. Louisville Omaha"></div>
+<div class="actions"><button class="primary" id="calculate">Calculate & animate hit</button><button class="secondary" id="reset" type="button">Reset</button></div>
+<div class="status" id="status" aria-live="polite"></div>
+</section>
+
+<section>
+<div class="panel">
+<h2>Field view</h2>
+<div class="metrics">
+<div class="metric"><span>Estimated carry</span><strong id="distance">—</strong></div>
+<div class="metric"><span>Flight time</span><strong id="flight">—</strong></div>
+<div class="metric"><span>Peak height</span><strong id="peak">—</strong></div>
+</div>
+<svg id="field" viewBox="0 0 720 590" role="img" aria-label="Top-down baseball field with animated hit path">
+<defs><clipPath id="grassClip"><path d="M360 525 L55 220 Q360 -80 665 220 Z"/></clipPath></defs>
+<rect width="720" height="590" fill="#0b1712"/>
+<path d="M360 525 L55 220 Q360 -80 665 220 Z" fill="#247447" stroke="#e4f0e5" stroke-width="3"/>
+<g clip-path="url(#grassClip)" opacity=".16"><path d="M360 525 L360 -20 L415 -20 L415 525Z" fill="#b6efc5"/><path d="M250 525 L250 -20 L305 -20 L305 525Z" fill="#b6efc5"/><path d="M470 525 L470 -20 L525 -20 L525 525Z" fill="#b6efc5"/></g>
+<path d="M360 525 L150 315 Q360 105 570 315 Z" fill="#b58a58" stroke="#f0d4a9" stroke-width="2"/>
+<path d="M360 525 L55 220 M360 525 L665 220" stroke="#fff3d5" stroke-width="3"/>
+<path d="M360 525 L150 315 L360 105 L570 315 Z" fill="none" stroke="#fff3d5" stroke-width="2"/>
+<circle cx="360" cy="315" r="5" fill="#fff3d5"/>
+<path d="M352 518 L360 510 L368 518 L360 526Z" fill="#fff3d5"/>
+<text x="360" y="563" text-anchor="middle" fill="#eaf4eb" font-size="15">HOME PLATE</text>
+<text x="76" y="205" fill="#eaf4eb" font-size="14">LEFT FIELD</text><text x="568" y="205" fill="#eaf4eb" font-size="14">RIGHT FIELD</text><text x="360" y="72" text-anchor="middle" fill="#eaf4eb" font-size="14">CENTER FIELD</text>
+<g id="pathGroup" style="display:none"><line id="trajectory" x1="360" y1="525" x2="360" y2="200" stroke="#ffd166" stroke-width="3" stroke-dasharray="8 7"/><circle id="landing" cx="360" cy="200" r="10" fill="#ffd166" stroke="#18251d" stroke-width="3"/><circle id="movingBall" cx="360" cy="525" r="7" fill="#fff" stroke="#bd382e" stroke-width="2"/><text id="landText" x="375" y="190" fill="#fff1bd" font-size="16" font-weight="700">LANDING</text></g>
+</svg>
+<div class="legend"><span><i class="dot" style="background:#ffd166"></i>Landing spot</span><span><i class="dot" style="background:white"></i>Animated ball</span></div>
+<p class="notice" id="resultNote">Enter a hit and press Calculate to plot it. The field is schematic; actual stadium dimensions vary.</p>
+</div>
+<div class="panel history">
+<div class="history-head"><h2 style="margin:0">Hit history</h2><button class="secondary" id="clearHistory" type="button">Clear history</button></div>
+<div id="history" class="history-list"><div class="empty">Your saved hits will appear here on this browser.</div></div>
+<p class="notice">Hit history is saved only in this browser on this device.</p>
+</div>
+</section>
+</div>
+<p class="notice">Estimate only: real baseball flight depends on measured spin rate and axis, seam orientation, air density, drag, and the accuracy of your inputs. The pitch-location grid is for recording pitch location, not a direct measurement of where the bat touched the ball. Your bat model does not independently determine distance once exit velocity is known.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let selectedZone=5, animationFrame=0;
+const zoneLabels={1:"Upper left",2:"Upper middle",3:"Upper right",4:"Middle left",5:"Middle",6:"Middle right",7:"Lower left",8:"Lower middle",9:"Lower right"};
+document.querySelectorAll(".zone").forEach(b=>b.addEventListener("click",()=>{
+ document.querySelectorAll(".zone").forEach(x=>{x.classList.remove("active");x.setAttribute("aria-pressed","false")});
+ b.classList.add("active");b.setAttribute("aria-pressed","true");selectedZone=Number(b.dataset.zone);
+ $("zoneName").textContent=selectedZone+" · "+zoneLabels[selectedZone];
+}));
+function animateBall(x2,y2,duration){
+ cancelAnimationFrame(animationFrame);
+ const ball=$("movingBall");let start=null;
+ function frame(ts){if(!start)start=ts;let p=Math.min(1,(ts-start)/duration);let eased=1-Math.pow(1-p,2);
+ ball.setAttribute("cx",360+(x2-360)*eased);
+ ball.setAttribute("cy",525+(y2-525)*eased-75*Math.sin(Math.PI*p));
+ if(p<1)animationFrame=requestAnimationFrame(frame);}
+ animationFrame=requestAnimationFrame(frame);
+}
+function calculate(){
+ const mph=Number($("velo").value), angle=Number($("angle").value), spray=Number($("spray").value), h=Number($("contact").value);
+ const windMph=Number($("wind").value), windDir=Number($("winddir").value), temp=Number($("temp").value), humidity=Number($("humidity").value), elev=Number($("elevation").value);
+ if(![mph,angle,spray,h,windMph,temp,humidity,elev].every(Number.isFinite)||mph<20||mph>130||angle< -10||angle>80||Math.abs(spray)>45||h<0||h>8||windMph<0||windMph>40||humidity<0||humidity>100||elev< -500||elev>12000){$("status").textContent="Please check your numbers and enter realistic values.";return;}
+ const v=mph*.44704,a=angle*Math.PI/180,s=spray*Math.PI/180,z0=h*.3048;
+ let vx=v*Math.cos(a)*Math.sin(s),vy=v*Math.cos(a)*Math.cos(s),vz=v*Math.sin(a);
+ const wind=windMph*.44704*windDir,wx=wind*Math.sin(s),wy=wind*Math.cos(s);
+ // Approximate air density from temperature and elevation; humidity correction is small.
+ const rho=1.225*Math.exp(-elev/28000)*(288.15/(temp+459.67));
+ const mass=$("ball").value==="Softball"?.187:0.145, area=$("ball").value==="Softball"?.0045:.00426, cd=.35, k=.5*rho*cd*area/mass;
+ let x=0,y=0,z=z0,t=0,peak=z,dt=.004;
+ while(z>=0&&t<12){
+  const rx=vx-wx,ry=vy-wy,rz=vz,sp=Math.sqrt(rx*rx+ry*ry+rz*rz);
+  const ax=-k*sp*rx,ay=-k*sp*ry,az=-9.80665-k*sp*rz;
+  vx+=ax*dt;vy+=ay*dt;vz+=az*dt;x+=vx*dt;y+=vy*dt;z+=vz*dt;t+=dt;if(z>peak)peak=z;
+ }
+ // Unknown spin is not modeled precisely; report uncertainty rather than pretending to know it.
+ const distance=Math.hypot(x,y)/.3048;
+ const direction=spray< -1?"left field":spray>1?"right field":"center field";
+ $("distance").textContent=distance.toFixed(0)+" ft";
+ $("flight").textContent=t.toFixed(1)+" s";
+ $("peak").textContent=(peak/.3048).toFixed(0)+" ft";
+ const scale=400,r=Math.min(1.12,distance/scale),px=360+Math.sin(s)*285*r,py=525-Math.cos(s)*285*r;
+ $("pathGroup").style.display="block";
+ $("trajectory").setAttribute("x2",px);$("trajectory").setAttribute("y2",py);
+ $("landing").setAttribute("cx",px);$("landing").setAttribute("cy",py);
+ $("landText").setAttribute("x",Math.min(590,Math.max(110,px+14)));$("landText").setAttribute("y",Math.max(30,py-15));
+ animateBall(px,py,Math.max(900,Math.min(2200,t*450)));
+ $("resultNote").textContent=`Estimated carry: ${distance.toFixed(0)} ft toward ${direction}. Pitch location: ${selectedZone} (${zoneLabels[selectedZone]}).`;
+ $("status").textContent="Hit calculated and added to your history.";
+ saveHit({date:new Date().toLocaleString(),mph,angle,spray,zone:selectedZone,distance:distance.toFixed(0),flight:t.toFixed(1),bat:$("bat").value+" "+$("batmodel").value});
+}
+function getHistory(){try{return JSON.parse(localStorage.getItem("baseballHits")||"[]")}catch(e){return []}}
+function saveHit(hit){let h=getHistory();h.unshift(hit);h=h.slice(0,30);try{localStorage.setItem("baseballHits",JSON.stringify(h))}catch(e){}renderHistory()}
+function renderHistory(){const list=$("history"),hits=getHistory();list.innerHTML="";if(!hits.length){list.innerHTML='<div class="empty">Your saved hits will appear here on this browser.</div>';return}
+ hits.forEach((h,i)=>{const div=document.createElement("div");div.className="hit";const left=document.createElement("div");const strong=document.createElement("strong");strong.textContent=`${h.distance} ft · ${h.mph} mph`;const sub=document.createElement("div");sub.innerHTML=`<span>${h.angle}° launch · Zone ${h.zone} · ${h.bat||"Bat not entered"}</span>`;left.append(strong,sub);const right=document.createElement("span");right.textContent=h.date;div.append(left,right);list.append(div);});
+}
+$("calculate").addEventListener("click",calculate);
+$("reset").addEventListener("click",()=>{["velo","angle","spray","contact","wind","temp","humidity","elevation","batmodel"].forEach((id)=>$(id).value=({velo:70,angle:25,spray:0,contact:3,wind:0,temp:70,humidity:50,elevation:800,batmodel:""}[id]));$("winddir").value="0";$("spin").value="unknown";$("ball").selectedIndex=0;$("bat").selectedIndex=0;document.querySelector('.zone[data-zone="5"]').click();$("status").textContent="Inputs reset.";});
+$("clearHistory").addEventListener("click",()=>{if(confirm("Clear all saved hits from this browser?")){localStorage.removeItem("baseballHits");renderHistory();}});
+renderHistory();calculate();
+</script>
+</body></html>
